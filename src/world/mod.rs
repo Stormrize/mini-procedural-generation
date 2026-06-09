@@ -1,5 +1,7 @@
-pub mod chunks;
-pub mod world;
 pub mod chunk;
+mod generation;
+pub mod renderer;
 pub mod tile;
-mod world_enums;
+pub mod world;
+pub mod world_config;
+pub mod world_enums;

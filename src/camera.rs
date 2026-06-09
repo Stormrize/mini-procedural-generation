@@ -1,7 +1,4 @@
-//! Изометрическая ортографическая камера (45°, как Civilization/XCOM).
-//!
-//! Камера стоит вдоль диагонали (1, 1, 1) от центра карты, смотрит вниз —
-//! это даёт классический вид «сверху-сбоку» без перспективных искажений.
+//! Ортографическая камера для чанкового мира.
 //!
 //! Управление:
 //!   W/S или ↑/↓  — вперёд/назад (по изометрической оси)
@@ -10,14 +7,17 @@
 
 use bevy::{camera::ScalingMode, prelude::*};
 
-use crate::world::chunk::config::WorldConfig;
+use crate::world::world_config::WorldConfig;
+
+const MIN_ORTHOGRAPHIC_SCALE: f32 = 0.1;
+const MAX_ORTHOGRAPHIC_SCALE: f32 = 5.0;
 
 pub struct CameraPlugin;
 
 impl Plugin for CameraPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, setup_camera)
-           .add_systems(Update, camera_movement);
+            .add_systems(Update, camera_movement);
     }
 }
 
@@ -28,28 +28,17 @@ pub struct MainCamera;
 // ─────────────────────────────────────────────────────────────────────────────
 
 fn setup_camera(mut commands: Commands, config: Res<WorldConfig>) {
-    // Центр карты в мировых координатах.
-    let cx = config.map_width  as f32 * config.tile_size * 0.5;
-    let cz = config.map_height as f32 * config.tile_size * 0.5;
-
-    // Дистанция камеры зависит от размера карты.
-    let map_size = config.map_width.max(config.map_height) as f32 * config.tile_size;
-    let dist     = map_size * 0.85;
-
-    // Истинная изометрия: смещение одинаково по X, Y, Z.
-    let camera_pos = Vec3::new(cx + dist, dist, cz + dist);
-    let look_at    = Vec3::new(cx, 0.0, cz);
-
-    // viewport_height — сколько мировых единиц помещается по высоте экрана.
-    // Карта 64×64 выглядит как ромб ~90 ед. диагональю → берём с запасом.
-    let viewport_h = map_size * 1.4;
+    let chunk_size = config.chunk_world_size();
+    let look_at = Vec3::new(chunk_size * 0.5, 0.0, chunk_size * 0.5);
+    let dist = chunk_size * 0.85;
+    let camera_pos = look_at + Vec3::new(dist, dist, dist);
 
     commands.spawn((
         MainCamera,
         Camera3d::default(),
         Projection::Orthographic(OrthographicProjection {
             scaling_mode: ScalingMode::FixedVertical {
-                viewport_height: viewport_h,
+                viewport_height: config.camera_viewport_height,
             },
             ..OrthographicProjection::default_3d()
         }),
@@ -58,7 +47,7 @@ fn setup_camera(mut commands: Commands, config: Res<WorldConfig>) {
 
     // Фоновый свет — чтобы теневые грани не были чёрными.
     commands.insert_resource(GlobalAmbientLight {
-        color:      Color::WHITE,
+        color: Color::WHITE,
         brightness: 400.0,
         ..default()
     });
@@ -66,8 +55,8 @@ fn setup_camera(mut commands: Commands, config: Res<WorldConfig>) {
     // Направленный свет — даёт ощущение объёма тайлам.
     commands.spawn((
         DirectionalLight {
-            illuminance:      8_000.0,
-            shadows_enabled:  false,
+            illuminance: 8_000.0,
+            shadows_enabled: false,
             ..default()
         },
         // Свет сверху-слева-спереди.
@@ -79,20 +68,20 @@ fn setup_camera(mut commands: Commands, config: Res<WorldConfig>) {
 
 fn camera_movement(
     mut camera_q: Query<(&mut Transform, &mut Projection), With<MainCamera>>,
-    keyboard:     Res<ButtonInput<KeyCode>>,
-    time:         Res<Time>,
+    keyboard: Res<ButtonInput<KeyCode>>,
+    time: Res<Time>,
 ) {
     let Ok((mut transform, mut projection)) = camera_q.single_mut() else {
         return;
     };
 
     // Скорость панорамирования.
-    let pan_speed = 18.0 * time.delta_secs();
+    let pan_speed = 80.0 * time.delta_secs();
 
     // Изометрические оси движения в мировом пространстве.
     // "Вперёд" в изометрии — это одновременно -X и -Z.
     let iso_forward = Vec3::new(-1.0, 0.0, -1.0).normalize();
-    let iso_right   = Vec3::new( 1.0, 0.0, -1.0).normalize();
+    let iso_right = Vec3::new(1.0, 0.0, -1.0).normalize();
 
     if keyboard.pressed(KeyCode::KeyW) || keyboard.pressed(KeyCode::ArrowUp) {
         transform.translation += iso_forward * pan_speed;
@@ -109,12 +98,72 @@ fn camera_movement(
 
     // Zoom через масштаб ортографической проекции.
     let zoom_speed = 0.04;
+    let ground_anchor = camera_ground_point(&transform);
     if let Projection::Orthographic(ref mut ortho) = *projection {
+        let previous_scale = ortho.scale;
+
         if keyboard.pressed(KeyCode::KeyE) {
-            ortho.scale = (ortho.scale - zoom_speed).max(0.1);
+            ortho.scale = (ortho.scale - zoom_speed).max(MIN_ORTHOGRAPHIC_SCALE);
         }
         if keyboard.pressed(KeyCode::KeyQ) {
-            ortho.scale = (ortho.scale + zoom_speed).min(5.0);
+            ortho.scale = (ortho.scale + zoom_speed).min(MAX_ORTHOGRAPHIC_SCALE);
         }
+
+        if ortho.scale > previous_scale {
+            keep_orthographic_view_above_ground(&mut transform, ortho, ground_anchor);
+        }
+    }
+}
+
+fn camera_ground_point(transform: &Transform) -> Option<Vec3> {
+    let forward = camera_forward(transform);
+    if forward.y.abs() < f32::EPSILON {
+        return None;
+    }
+
+    let distance = -transform.translation.y / forward.y;
+    (distance > 0.0).then_some(transform.translation + forward * distance)
+}
+
+fn camera_forward(transform: &Transform) -> Vec3 {
+    transform.rotation * Vec3::NEG_Z
+}
+
+fn keep_orthographic_view_above_ground(
+    transform: &mut Transform,
+    ortho: &OrthographicProjection,
+    ground_anchor: Option<Vec3>,
+) {
+    let Some(ground_anchor) = ground_anchor else {
+        return;
+    };
+    let Some(view_height) = orthographic_view_height(ortho) else {
+        return;
+    };
+
+    let forward = camera_forward(transform);
+    let up = transform.rotation * Vec3::Y;
+    let downward = -forward.y;
+    if downward <= f32::EPSILON {
+        return;
+    }
+
+    let half_view_height = view_height * ortho.scale * 0.5;
+    let ground_clearance = 2.0;
+    let required_distance = (half_view_height * up.y.abs() + ground_clearance) / downward;
+    let current_distance = (ground_anchor - transform.translation).dot(forward);
+
+    if required_distance > current_distance {
+        transform.translation = ground_anchor - forward * required_distance;
+    }
+}
+
+fn orthographic_view_height(ortho: &OrthographicProjection) -> Option<f32> {
+    match ortho.scaling_mode {
+        ScalingMode::Fixed { height, .. } => Some(height),
+        ScalingMode::FixedVertical { viewport_height } => Some(viewport_height),
+        ScalingMode::AutoMin { min_height, .. } => Some(min_height),
+        ScalingMode::AutoMax { max_height, .. } => Some(max_height),
+        ScalingMode::WindowSize | ScalingMode::FixedHorizontal { .. } => None,
     }
 }
