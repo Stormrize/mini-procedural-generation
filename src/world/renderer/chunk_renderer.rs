@@ -4,10 +4,10 @@
 //! по одному merged mesh на каждый биом, который реально есть в чанке.
 
 use bevy::mesh::Indices;
-use bevy::{asset::RenderAssetUsages, prelude::*, render::render_resource::PrimitiveTopology};
-
+use bevy::{asset::RenderAssetUsages, render::render_resource::PrimitiveTopology};
+use bevy::prelude::{default, Assets, Commands, Component, Entity, Handle, IVec2, Mesh, Mesh3d, MeshMaterial3d, Resource, StandardMaterial, Transform, Vec3};
 use crate::world::chunk::Chunk;
-use crate::world::world_config::{CHUNK_SIZE, WorldConfig};
+use crate::world::world_config::{WorldConfig, CHUNK_SIZE};
 use crate::world::world_enums::biome::Biome;
 
 #[derive(Component)]
@@ -39,7 +39,7 @@ impl TileAssets {
                     perceptual_roughness: match biome {
                         Biome::DeepWater | Biome::ShallowWater => 0.08,
                         Biome::Peak => 0.6,
-                        _           => 0.9,
+                        _ => 0.9,
                     },
                     metallic: 0.0,
                     ..default()
@@ -133,8 +133,14 @@ fn build_biome_surface_mesh(chunk: &Chunk, biome: Biome, config: &WorldConfig) -
         let x1 = x0 + tile_size;
         let z0 = row as f32 * tile_size;
         let z1 = z0 + tile_size;
-        let y = tile.visual_height();
+        const INV_128: f32 = 1.0 / 128.0;
+        const INV_U8_MAX: f32 = 1.0 / 255.0;
+        const HEIGHT_SCALE: f32 = 0.04;
 
+        let biome_height = f32::from(tile.biome.visual_height()) * INV_128;
+        let height_offset = f32::from(tile.height) * INV_U8_MAX * HEIGHT_SCALE;
+
+        let y = biome_height + height_offset;
         positions.extend_from_slice(&[[x0, y, z0], [x0, y, z1], [x1, y, z1], [x1, y, z0]]);
         normals.extend_from_slice(&[[0.0, 1.0, 0.0]; 4]);
         uvs.extend_from_slice(&[[0.0, 0.0], [0.0, 1.0], [1.0, 1.0], [1.0, 0.0]]);

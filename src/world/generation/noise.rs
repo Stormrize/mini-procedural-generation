@@ -3,7 +3,7 @@
 //! Все вызовы `noise`-крейта изолированы здесь — остальной код
 //! не знает о конкретной библиотеке шума.
 
-use noise::{NoiseFn, Perlin};
+use noise::{Fbm, MultiFractal, NoiseFn, Perlin};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // fBm — Fractal Brownian Motion
@@ -17,7 +17,7 @@ pub fn fbm(
     perlin: &Perlin,
     x: f64,
     y: f64,
-    octaves: u32,
+    octaves: u8,
     persistence: f64, // насколько каждый слой тише предыдущего
     lacunarity: f64,  // насколько каждый слой чаще предыдущего
 ) -> f64 {
@@ -37,7 +37,6 @@ pub fn fbm(
     value / max_amp
 }
 
-/// Перевод из [−1, 1] → [0, 1].
 #[inline]
 pub fn normalise(v: f64) -> f64 {
     (v + 1.0) * 0.5

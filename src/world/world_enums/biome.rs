@@ -27,7 +27,7 @@ pub enum Biome {
 
 impl Biome {
     /// Определить биом по нормализованной высоте (0.0–1.0).
-    pub fn from_height(height: f32, cfg: &WorldConfig) -> Self {
+    pub fn from_height(height: u8, cfg: &WorldConfig) -> Self {
         match height {
             h if h < cfg.threshold_deep_water => Biome::DeepWater,
             h if h < cfg.threshold_shallow_water => Biome::ShallowWater,
@@ -44,22 +44,22 @@ impl Biome {
     ///
     /// Вода — плоская, пики — высокие.
     /// Используется как scale.y при рендеринге.
-    pub fn visual_height(self) -> f32 {
+    pub fn visual_height(self) -> u8 {
         match self {
-            Biome::DeepWater => 0.08,
-            Biome::ShallowWater => 0.14,
-            Biome::Sand => 0.20,
-            Biome::Grass => 0.26,
-            Biome::Forest => 0.35,
-            Biome::Hills => 0.60,
-            Biome::Mountain => 1.20,
-            Biome::Peak => 2.00,
+            Biome::DeepWater => 10, //0.08
+            Biome::ShallowWater => 18, //0.14
+            Biome::Sand => 25, //0.20
+            Biome::Grass => 33, //0.26
+            Biome::Forest => 45, //0.35
+            Biome::Hills => 77, //0.60
+            Biome::Mountain => 154,
+            Biome::Peak => 255,
         }
     }
 
     /// Плейсхолдер-цвет до загрузки реальных текстур.
     ///
-    /// TODO: замени на `base_color_texture: Some(asset_server.load("..."))` в renderer.rs
+    /// TODO: замени на `base_color_texture: Some(asset_server.load("..."))` в chunk_renderer
     pub fn color(self) -> Color {
         match self {
             Biome::DeepWater => Color::srgb(0.04, 0.16, 0.44),

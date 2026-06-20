@@ -7,7 +7,7 @@ use crate::world::world_config::{CHUNK_SIZE, WorldConfig};
 #[derive(Clone)]
 pub struct Chunk {
     pub coord: IVec2,
-    tiles: [[Tile; CHUNK_SIZE]; CHUNK_SIZE],
+    pub tiles: [[Tile; CHUNK_SIZE]; CHUNK_SIZE],
 }
 
 impl Chunk {
@@ -21,6 +21,7 @@ impl Chunk {
                 tiles[row][col] = Tile::new(height, config);
             }
         }
+        //println!("{}", coord);
 
         Self { coord, tiles }
     }

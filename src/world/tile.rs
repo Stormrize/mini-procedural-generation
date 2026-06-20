@@ -3,37 +3,33 @@ use crate::world::world_enums::biome::Biome;
 
 #[derive(Clone, Copy)]
 pub struct Tile {
-    pub height: f32,
+    pub height: u8,
     #[allow(dead_code)]
-    pub moisture: f32,
+    pub moisture: u8,
     #[allow(dead_code)]
-    pub temperature: f32,
+    pub temperature: u8,
     pub biome: Biome,
 }
 
+
 impl Tile {
-    pub fn new(height: f32, cfg: &WorldConfig) -> Self {
+    pub fn new(height: u8, cfg: &WorldConfig) -> Self {
         let biome = Biome::from_height(height, cfg);
         Tile {
             height,
-            moisture: 0.0,
-            temperature: 0.0,
+            moisture: 0,
+            temperature: 0,
             biome,
         }
-    }
-
-    #[inline]
-    pub fn visual_height(self) -> f32 {
-        self.biome.visual_height() + self.height * 0.04
     }
 }
 
 impl Default for Tile {
     fn default() -> Self {
         Tile {
-            height: 0.0,
-            moisture: 0.0,
-            temperature: 0.0,
+            height: 0,
+            moisture: 0,
+            temperature: 0,
             biome: Biome::default(),
         }
     }

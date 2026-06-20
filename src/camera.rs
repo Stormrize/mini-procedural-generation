@@ -1,23 +1,27 @@
 //! Ортографическая камера для чанкового мира.
-//!
-//! Управление:
-//!   W/S или ↑/↓  — вперёд/назад (по изометрической оси)
-//!   A/D или ←/→  — влево/вправо (по изометрической оси)
-//!   Q / E        — zoom out / zoom in
 
 use bevy::{camera::ScalingMode, prelude::*};
 
 use crate::world::world_config::WorldConfig;
 
+use bevy::input::mouse::{MouseScrollUnit, MouseWheel};
+
 const MIN_ORTHOGRAPHIC_SCALE: f32 = 0.1;
-const MAX_ORTHOGRAPHIC_SCALE: f32 = 5.0;
+const MAX_ORTHOGRAPHIC_SCALE: f32 = 60.0;
+
+
+#[derive(Resource)]
+struct CameraZoom {
+    zoom: f32,
+}
 
 pub struct CameraPlugin;
 
 impl Plugin for CameraPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, setup_camera)
-            .add_systems(Update, camera_movement);
+        app.insert_resource(CameraZoom { zoom: 1.0 })
+            .add_systems(Startup, setup_camera)
+            .add_systems(Update, (camera_movement, apply_zoom_smoothing).chain());
     }
 }
 
@@ -40,46 +44,42 @@ fn setup_camera(mut commands: Commands, config: Res<WorldConfig>) {
             scaling_mode: ScalingMode::FixedVertical {
                 viewport_height: config.camera_viewport_height,
             },
+            near: -10_000.0,
+            far: 10_000.0,
             ..OrthographicProjection::default_3d()
         }),
         Transform::from_translation(camera_pos).looking_at(look_at, Vec3::Y),
     ));
 
-    // Фоновый свет — чтобы теневые грани не были чёрными.
     commands.insert_resource(GlobalAmbientLight {
         color: Color::WHITE,
         brightness: 400.0,
         ..default()
     });
 
-    // Направленный свет — даёт ощущение объёма тайлам.
     commands.spawn((
         DirectionalLight {
             illuminance: 8_000.0,
             shadows_enabled: false,
             ..default()
         },
-        // Свет сверху-слева-спереди.
         Transform::from_xyz(-2.0, 5.0, 2.0).looking_at(Vec3::ZERO, Vec3::Y),
     ));
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
 
 fn camera_movement(
     mut camera_q: Query<(&mut Transform, &mut Projection), With<MainCamera>>,
     keyboard: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
+    mut mouse_wheel_reader: MessageReader<MouseWheel>,
+    mut target_zoom: ResMut<CameraZoom>,
 ) {
     let Ok((mut transform, mut projection)) = camera_q.single_mut() else {
         return;
     };
 
-    // Скорость панорамирования.
     let pan_speed = 80.0 * time.delta_secs();
 
-    // Изометрические оси движения в мировом пространстве.
-    // "Вперёд" в изометрии — это одновременно -X и -Z.
     let iso_forward = Vec3::new(-1.0, 0.0, -1.0).normalize();
     let iso_right = Vec3::new(1.0, 0.0, -1.0).normalize();
 
@@ -96,74 +96,35 @@ fn camera_movement(
         transform.translation -= iso_right * pan_speed;
     }
 
-    // Zoom через масштаб ортографической проекции.
-    let zoom_speed = 0.04;
-    let ground_anchor = camera_ground_point(&transform);
+    let zoom_speed = 0.2;
     if let Projection::Orthographic(ref mut ortho) = *projection {
-        let previous_scale = ortho.scale;
 
-        if keyboard.pressed(KeyCode::KeyE) {
-            ortho.scale = (ortho.scale - zoom_speed).max(MIN_ORTHOGRAPHIC_SCALE);
-        }
-        if keyboard.pressed(KeyCode::KeyQ) {
-            ortho.scale = (ortho.scale + zoom_speed).min(MAX_ORTHOGRAPHIC_SCALE);
-        }
+        for mouse_wheel in mouse_wheel_reader.read() {
 
-        if ortho.scale > previous_scale {
-            keep_orthographic_view_above_ground(&mut transform, ortho, ground_anchor);
+            let scroll = match mouse_wheel.unit {
+                MouseScrollUnit::Line => mouse_wheel.y * zoom_speed,
+                MouseScrollUnit::Pixel => mouse_wheel.y * zoom_speed * 0.05,
+            };
+
+            target_zoom.zoom = (target_zoom.zoom - scroll).clamp(MIN_ORTHOGRAPHIC_SCALE, MAX_ORTHOGRAPHIC_SCALE);
         }
     }
 }
-
-fn camera_ground_point(transform: &Transform) -> Option<Vec3> {
-    let forward = camera_forward(transform);
-    if forward.y.abs() < f32::EPSILON {
-        return None;
-    }
-
-    let distance = -transform.translation.y / forward.y;
-    (distance > 0.0).then_some(transform.translation + forward * distance)
-}
-
-fn camera_forward(transform: &Transform) -> Vec3 {
-    transform.rotation * Vec3::NEG_Z
-}
-
-fn keep_orthographic_view_above_ground(
-    transform: &mut Transform,
-    ortho: &OrthographicProjection,
-    ground_anchor: Option<Vec3>,
+fn apply_zoom_smoothing(
+    mut camera_q: Query<&mut Projection, With<MainCamera>>,
+    target_zoom: Res<CameraZoom>,
+    time: Res<Time>,
 ) {
-    let Some(ground_anchor) = ground_anchor else {
-        return;
-    };
-    let Some(view_height) = orthographic_view_height(ortho) else {
+    let Ok(mut projection) = camera_q.single_mut() else {
         return;
     };
 
-    let forward = camera_forward(transform);
-    let up = transform.rotation * Vec3::Y;
-    let downward = -forward.y;
-    if downward <= f32::EPSILON {
+    let Projection::Orthographic(ref mut ortho) = *projection else {
         return;
-    }
+    };
 
-    let half_view_height = view_height * ortho.scale * 0.5;
-    let ground_clearance = 2.0;
-    let required_distance = (half_view_height * up.y.abs() + ground_clearance) / downward;
-    let current_distance = (ground_anchor - transform.translation).dot(forward);
+    let smoothness = 8.0;
+    let t = 1.0 - (-smoothness * time.delta_secs()).exp();
 
-    if required_distance > current_distance {
-        transform.translation = ground_anchor - forward * required_distance;
-    }
-}
-
-fn orthographic_view_height(ortho: &OrthographicProjection) -> Option<f32> {
-    match ortho.scaling_mode {
-        ScalingMode::Fixed { height, .. } => Some(height),
-        ScalingMode::FixedVertical { viewport_height } => Some(viewport_height),
-        ScalingMode::AutoMin { min_height, .. } => Some(min_height),
-        ScalingMode::AutoMax { max_height, .. } => Some(max_height),
-        ScalingMode::WindowSize | ScalingMode::FixedHorizontal { .. } => None,
-    }
+    ortho.scale = ortho.scale.lerp(target_zoom.zoom, t);
 }
