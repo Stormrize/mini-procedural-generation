@@ -1,1 +1,16 @@
-/target
+# Rust
+/target/
+
+# IDE
+.idea/
+*.iml
+
+# VSCode
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
