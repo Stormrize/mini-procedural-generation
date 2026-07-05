@@ -1,12 +1,11 @@
-mod world;
-mod free_camera;
+mod terrain;
+mod input;
 mod camera;
-
-use bevy::gltf::GltfAssetLabel;
+use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::prelude::*;
-use bevy::scene::SceneRoot;
 
 fn main() {
+    println!("start");
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
@@ -17,9 +16,9 @@ fn main() {
             }),
             ..default()
         }))
-        // .add_plugins(FrameTimeDiagnosticsPlugin::default())
-        // .add_plugins(LogDiagnosticsPlugin::default())
-        .add_plugins(camera::CameraPlugin)
-        .add_plugins(world::renderer::WorldPlugin)
+        .add_plugins(FrameTimeDiagnosticsPlugin::default())
+        .add_plugins(LogDiagnosticsPlugin::default())
+        .add_plugins(camera::camera::CameraPlugin)
+        .add_plugins(terrain::renderer::WorldPlugin)
         .run();
 }

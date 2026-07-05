@@ -1,13 +1,15 @@
-use bevy::{prelude::*, camera::ScalingMode};
-use crate::world::math::math::min_max_chunk;
-use crate::world::world_config::{WorldConfig, WorldShape, CHUNK_SIZE};
+use crate::terrain::math::math::min_max_chunk;
+use crate::terrain::world_config::{CHUNK_SIZE, WorldConfig, WorldShape};
+use bevy::{camera::ScalingMode, prelude::*};
 
 pub fn camera_forward(transform: &Transform) -> Vec3 {
     transform.rotation * Vec3::NEG_Z
 }
 
 pub fn project_ray_to_ground(origin: Vec3, direction: Vec3) -> Option<Vec3> {
-    if direction.y.abs() < f32::EPSILON { return None; }
+    if direction.y.abs() < f32::EPSILON {
+        return None;
+    }
     let distance = -origin.y / direction.y;
     Some(origin + direction * distance)
 }

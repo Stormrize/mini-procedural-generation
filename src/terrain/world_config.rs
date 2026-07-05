@@ -1,7 +1,8 @@
 //! Конфигурация генерации и стриминга мира.
 
+use std::num::FpCategory::Infinite;
 use bevy::prelude::{IVec2, Resource};
-use crate::world::generation::voronoi::random_points;
+use noise::Perlin;
 
 /// Размер чанка фиксирован, чтобы `Chunk` хранил тайлы в плотном массиве.
 pub const CHUNK_SIZE: usize = 64;
@@ -9,6 +10,11 @@ pub const CHUNK_SIZE: usize = 64;
 /// Глобальные размеры мира в тайлах для heightmap falloff и Voronoi-генерации.
 pub const WORLD_WIDTH: usize = CHUNK_SIZE * 12;
 pub const WORLD_HEIGHT: usize = CHUNK_SIZE * 12;
+
+
+/// Приближение камеры
+pub const MIN_ORTHOGRAPHIC_SCALE: f32 = 0.1;
+pub const MAX_ORTHOGRAPHIC_SCALE: f32 = 900.0;
 
 /// Главный ресурс конфигурации. Вставляется в App один раз.
 #[derive(Resource, Clone)]
@@ -18,11 +24,9 @@ pub struct WorldConfig {
     pub tile_size: f32,
     pub preload_margin_chunks: i8,
     pub unload_margin_chunks: i8,
-    pub max_chunk_loads_per_frame: u8,
-    pub octaves: u8,
-
     pub camera_viewport_height: f32,
 
+    pub octaves: u8,
     pub frequency: f64,
     pub persistence: f64,
     pub lacunarity: f64,
@@ -39,17 +43,17 @@ pub struct WorldConfig {
     pub threshold_hills: u8,
     pub threshold_mountain: u8,
     // выше threshold_mountain → Peak
+
+    pub human_threshold: u8,
+    pub elf_threshold: u8,
 }
 impl Default for WorldConfig {
     fn default() -> Self {
         Self {
             seed: 42,
-
-            tile_size: 1.0,
-            preload_margin_chunks: 2,
-            unload_margin_chunks: 2,
-            max_chunk_loads_per_frame: 8,
-
+            tile_size: 16.0,
+            preload_margin_chunks: 1,
+            unload_margin_chunks: 14,
             camera_viewport_height: CHUNK_SIZE as f32 * 1.5,
 
             // Низкие частоты важны для чанков: шум семплируется в глобальных tile-координатах.
@@ -77,6 +81,9 @@ impl Default for WorldConfig {
             threshold_hills: 199,         //0.78
             threshold_mountain: 224,      //0.88
                                           // >= 0.88 → Peak
+
+            human_threshold: 75,
+            elf_threshold: 150,
         }
     }
 }

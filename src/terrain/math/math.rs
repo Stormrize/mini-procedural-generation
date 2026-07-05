@@ -1,5 +1,5 @@
+use crate::terrain::world_config::CHUNK_SIZE;
 use bevy::math::IVec2;
-use crate::world::world_config::CHUNK_SIZE;
 
 #[inline]
 pub fn min_max_chunk(width_tiles: i32, height_tiles: i32, center_tile: IVec2, margin: i32) -> (IVec2, IVec2) {

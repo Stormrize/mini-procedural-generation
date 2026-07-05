@@ -1,5 +1,5 @@
-use crate::world::math::math::min_max_tile;
-use crate::world::world_config::{WorldConfig, WorldShape};
+use crate::terrain::math::math::min_max_tile;
+use crate::terrain::world_config::{WorldConfig, WorldShape};
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 

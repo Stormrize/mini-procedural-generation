@@ -1,17 +1,19 @@
+use rayon::iter::ParallelIterator;
 use bevy::{prelude::*, window::PrimaryWindow};
 use std::time::Instant;
-use crate::camera::MainCamera;
-use crate::world::renderer::camera_math::{
+use crate::camera::camera::MainCamera;
+use crate::terrain::generation::heightmap::PerlinPlaceholder;
+use crate::terrain::renderer::camera_math::{
     camera_chunk_bounds, camera_ground_point, chunk_coord_from_world_xz,
     finite_world_chunk_bounds, outside_bounds,
 };
-use crate::world::renderer::Rendered;
-use crate::world::renderer::chunk_renderer::{
+use crate::terrain::renderer::Rendered;
+use crate::terrain::renderer::chunk_renderer::{
     despawn_chunk_meshes, spawn_chunk_meshes, TileAssets,
 };
-use crate::world::renderer::details_renderer::{despawn_models, spawn_models};
-use crate::world::world::World;
-use crate::world::world_config::WorldConfig;
+use crate::terrain::renderer::details_renderer::{despawn_models, spawn_models};
+use crate::terrain::world::World;
+use crate::terrain::world_config::WorldConfig;
 
 /// Главная система, которая управляет жизненным циклом чанков вокруг камеры.
 pub fn stream_chunks(
@@ -24,6 +26,7 @@ pub fn stream_chunks(
     mut asset_server: ResMut<AssetServer>,
     camera_q: Query<(&Transform, &Projection), With<MainCamera>>,
     window_q: Query<&Window, With<PrimaryWindow>>,
+    perlin_placeholder: Res<PerlinPlaceholder>,
 ) {
     // 1. Проверяем компоненты камеры и окна
     let Ok((camera_transform, projection)) = camera_q.single() else { return; };
@@ -64,6 +67,7 @@ pub fn stream_chunks(
         &config,
         &tile_assets,
         missing_chunks,
+        perlin_placeholder
     );
 
     load_missing_details(
@@ -127,7 +131,7 @@ fn unload_distant_chunks(
         .collect();
 
 
-
+    let mut counter = 0;
     for coord in to_unload {
         if let Some(chunk_meshes) = rendered.chunks.remove(&coord) {
             despawn_chunk_meshes(commands, meshes, chunk_meshes);
@@ -136,7 +140,9 @@ fn unload_distant_chunks(
             despawn_models(commands, model);
         }
         world.unload_chunk(coord);
+        counter += 1;
     }
+    println!("despawned {} chunks", counter);
 }
 
 /// Находит нераспрендеренные координаты и сортирует их от центра к краям (Чебышёв + Манхэттен)
@@ -182,13 +188,14 @@ fn load_missing_chunks(
     config: &WorldConfig,
     tile_assets: &TileAssets,
     missing_chunks: Vec<IVec2>,
+    perlin_placeholder: Res<PerlinPlaceholder>,
 ) {
     let start_time = Instant::now();
-    let max_loads = config.max_chunk_loads_per_frame as usize;
+    //let max_loads = config.max_chunk_loads_per_frame as usize;
 
-    for coord in missing_chunks.into_iter().take(max_loads) {
-        // Защита от просадок FPS: если генерация заняла больше 5мс, прерываемся до следующего кадра
-        if start_time.elapsed().as_millis() > 5 {
+    for coord in missing_chunks.into_iter() {
+        // сделать не 10 а в зависимости от фпс
+        if start_time.elapsed().as_millis() > 10 {
             break;
         }
 
@@ -198,14 +205,13 @@ fn load_missing_chunks(
         }
 
         // Генерация данных чанка (логика)
-        let chunk = world.chunk_or_generate(coord, config);
+        let chunk = world.chunk_or_generate(coord, config, &perlin_placeholder);
 
         // Создание визуальной части (мешей)
         let chunk_meshes = spawn_chunk_meshes(commands, meshes, chunk, config, tile_assets);
-
         // Регистрируем готовый чанк
         rendered.chunks.insert(coord, chunk_meshes);
-    }
+    };
 }
 
 fn load_missing_details(

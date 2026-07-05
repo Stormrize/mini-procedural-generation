@@ -3,12 +3,15 @@
 //! Вместо `Entity` на каждый tile создаётся до 8 mesh-entity на чанк:
 //! по одному merged mesh на каждый биом, который реально есть в чанке.
 
+use crate::terrain::chunk::Chunk;
+use crate::terrain::world_config::{CHUNK_SIZE, WorldConfig};
+use crate::terrain::terrain_enums::biome::Biome;
 use bevy::mesh::Indices;
+use bevy::prelude::{
+    Assets, Commands, Component, Entity, Handle, IVec2, Mesh, Mesh3d, MeshMaterial3d, Resource,
+    StandardMaterial, Transform, Vec3, default,
+};
 use bevy::{asset::RenderAssetUsages, render::render_resource::PrimitiveTopology};
-use bevy::prelude::{default, Assets, Commands, Component, Entity, Handle, IVec2, Mesh, Mesh3d, MeshMaterial3d, Resource, StandardMaterial, Transform, Vec3};
-use crate::world::chunk::Chunk;
-use crate::world::world_config::{WorldConfig, CHUNK_SIZE};
-use crate::world::world_enums::biome::Biome;
 
 #[derive(Component)]
 #[allow(dead_code)]
@@ -137,7 +140,7 @@ fn build_biome_surface_mesh(chunk: &Chunk, biome: Biome, config: &WorldConfig) -
         const INV_U8_MAX: f32 = 1.0 / 255.0;
         const HEIGHT_SCALE: f32 = 0.04;
 
-        let biome_height = f32::from(tile.biome.visual_height()) * INV_128;
+        let biome_height = f32::from(tile.biome.visual_height()) * INV_128 * config.tile_size;
         let height_offset = f32::from(tile.height) * INV_U8_MAX * HEIGHT_SCALE;
 
         let y = biome_height + height_offset;

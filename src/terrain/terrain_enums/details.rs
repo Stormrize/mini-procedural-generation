@@ -5,7 +5,6 @@ pub enum Details {
 }
 
 impl Details {
-
     pub fn path(self) -> &'static str {
         match self {
             Details::Castle => "tower-top.glb",

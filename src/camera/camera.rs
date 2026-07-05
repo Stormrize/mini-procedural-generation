@@ -2,26 +2,25 @@
 
 use bevy::{camera::ScalingMode, prelude::*};
 
-use crate::world::world_config::WorldConfig;
+use crate::terrain::world_config::{WorldConfig, MAX_ORTHOGRAPHIC_SCALE, MIN_ORTHOGRAPHIC_SCALE};
 
 use bevy::input::mouse::{MouseScrollUnit, MouseWheel};
-
-const MIN_ORTHOGRAPHIC_SCALE: f32 = 0.1;
-const MAX_ORTHOGRAPHIC_SCALE: f32 = 60.0;
-
+use bevy::math::ops::sqrt;
 
 #[derive(Resource)]
-struct CameraZoom {
-    zoom: f32,
+pub struct CameraZoom {
+    pub zoom: f32,
 }
 
 pub struct CameraPlugin;
 
 impl Plugin for CameraPlugin {
     fn build(&self, app: &mut App) {
+        println!("camera plugin 1");
         app.insert_resource(CameraZoom { zoom: 1.0 })
             .add_systems(Startup, setup_camera)
             .add_systems(Update, (camera_movement, apply_zoom_smoothing).chain());
+        println!("camera plugin 2");
     }
 }
 
@@ -44,8 +43,8 @@ fn setup_camera(mut commands: Commands, config: Res<WorldConfig>) {
             scaling_mode: ScalingMode::FixedVertical {
                 viewport_height: config.camera_viewport_height,
             },
-            near: -10_000.0,
-            far: 10_000.0,
+            near: -10_0000.0,
+            far: 10_0000.0,
             ..OrthographicProjection::default_3d()
         }),
         Transform::from_translation(camera_pos).looking_at(look_at, Vec3::Y),
@@ -78,7 +77,7 @@ fn camera_movement(
         return;
     };
 
-    let pan_speed = 80.0 * time.delta_secs();
+    let pan_speed = 200.0 * sqrt(target_zoom.zoom) * time.delta_secs();
 
     let iso_forward = Vec3::new(-1.0, 0.0, -1.0).normalize();
     let iso_right = Vec3::new(1.0, 0.0, -1.0).normalize();
@@ -96,7 +95,7 @@ fn camera_movement(
         transform.translation -= iso_right * pan_speed;
     }
 
-    let zoom_speed = 0.2;
+    let zoom_speed = 3.0;
     if let Projection::Orthographic(ref mut ortho) = *projection {
 
         for mouse_wheel in mouse_wheel_reader.read() {
@@ -127,4 +126,5 @@ fn apply_zoom_smoothing(
     let t = 1.0 - (-smoothness * time.delta_secs()).exp();
 
     ortho.scale = ortho.scale.lerp(target_zoom.zoom, t);
+    println!("{:?}", ortho.scale);
 }

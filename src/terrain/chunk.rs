@@ -1,8 +1,9 @@
-use bevy::prelude::IVec2;
-
-use crate::world::generation::heightmap::HeightMap;
-use crate::world::tile::Tile;
-use crate::world::world_config::{CHUNK_SIZE, WorldConfig};
+use std::time::Instant;
+use bevy::prelude::{IVec2, Res};
+use crate::terrain::generation::biome_map::BiomeMap;
+use crate::terrain::generation::heightmap::{HeightMap, PerlinPlaceholder};
+use crate::terrain::tile::Tile;
+use crate::terrain::world_config::{CHUNK_SIZE, WorldConfig};
 
 #[derive(Clone)]
 pub struct Chunk {
@@ -11,8 +12,8 @@ pub struct Chunk {
 }
 
 impl Chunk {
-    pub fn generate(coord: IVec2, config: &WorldConfig) -> Self {
-        let height_map = HeightMap::generate_chunk(coord, config);
+    pub fn generate(coord: IVec2, config: &WorldConfig, perlin_placeholder: &Res<PerlinPlaceholder>) -> Self {
+        let height_map = HeightMap::generate_chunk(coord, config, perlin_placeholder);
         let mut tiles = [[Tile::default(); CHUNK_SIZE]; CHUNK_SIZE];
 
         for row in 0..CHUNK_SIZE {

@@ -1,22 +1,21 @@
 //! WorldPlugin: конфиг, стриминг чанков и реакция на regenerate.
 
-pub mod chunk_renderer;
 pub mod camera_math;
-pub mod events;
+pub mod chunk_renderer;
 pub mod chunk_straming;
 mod details_renderer;
-
 use bevy::prelude::*;
 use std::collections::HashMap;
-
-use crate::world::renderer::events::{handle_input, RegenerateWorldEvent};
-use crate::world::renderer::chunk_straming::stream_chunks;
-use crate::world::renderer::chunk_renderer::{
-    despawn_chunk_meshes, SpawnedChunkMeshes, TileAssets,
+use crate::input::events::{handle_input, RegenerateWorldEvent};
+use crate::terrain::generation::heightmap::PerlinPlaceholder;
+use crate::terrain::renderer::chunk_renderer::{
+    SpawnedChunkMeshes, TileAssets, despawn_chunk_meshes,
 };
-use crate::world::renderer::details_renderer::{auto_scale_system, despawn_models, SpawnedModels};
-use crate::world::world::World;
-use crate::world::world_config::WorldConfig;
+use crate::terrain::renderer::chunk_straming::stream_chunks;
+use crate::terrain::renderer::details_renderer::{SpawnedModels, despawn_models};
+
+use crate::terrain::world::World;
+use crate::terrain::world_config::WorldConfig;
 
 #[derive(Resource, Default)]
 pub struct Rendered {
@@ -24,13 +23,13 @@ pub struct Rendered {
     details: HashMap<IVec2, SpawnedModels>,
 }
 
-
-
 pub struct WorldPlugin;
 
 impl Plugin for WorldPlugin {
     fn build(&self, app: &mut App) {
+        println!("terrain plugin 1");
         app.insert_resource(WorldConfig::default())
+            .insert_resource(PerlinPlaceholder::default())
             .insert_resource(World::default())
             .insert_resource(Rendered::default())
             .add_message::<RegenerateWorldEvent>()
@@ -39,6 +38,7 @@ impl Plugin for WorldPlugin {
                 Update,
                 (handle_input, apply_regenerate, stream_chunks).chain(),
             );
+        println!("terrain plugin 2");
     }
 }
 

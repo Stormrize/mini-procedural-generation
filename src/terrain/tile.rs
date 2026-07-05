@@ -1,5 +1,5 @@
-use crate::world::world_config::WorldConfig;
-use crate::world::world_enums::biome::Biome;
+use crate::terrain::world_config::WorldConfig;
+use crate::terrain::terrain_enums::biome::Biome;
 
 #[derive(Clone, Copy)]
 pub struct Tile {
@@ -10,7 +10,6 @@ pub struct Tile {
     pub temperature: u8,
     pub biome: Biome,
 }
-
 
 impl Tile {
     pub fn new(height: u8, cfg: &WorldConfig) -> Self {
