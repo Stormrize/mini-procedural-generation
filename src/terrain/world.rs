@@ -11,7 +11,12 @@ pub struct World {
 }
 
 impl World {
-    pub fn chunk_or_generate(&mut self, coord: IVec2, config: &WorldConfig, perlin_placeholder: &Res<PerlinPlaceholder>) -> &Chunk {
+    pub fn chunk_or_generate(
+        &mut self,
+        coord: IVec2,
+        config: &WorldConfig,
+        perlin_placeholder: &Res<PerlinPlaceholder>,
+    ) -> &Chunk {
         self.chunks
             .entry(coord)
             .or_insert_with(|| Chunk::generate(coord, config, perlin_placeholder))

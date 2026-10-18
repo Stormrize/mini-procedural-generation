@@ -1,7 +1,7 @@
+use crate::terrain::generation::heightmap::PerlinPlaceholder;
 use crate::terrain::world_config::WorldConfig;
 use bevy::prelude::*;
 use noise::Perlin;
-use crate::terrain::generation::heightmap::PerlinPlaceholder;
 
 #[derive(Message)] // Обычно в Bevy используется Event, а не Message
 pub struct RegenerateWorldEvent;

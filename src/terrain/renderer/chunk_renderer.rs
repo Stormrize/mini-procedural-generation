@@ -4,8 +4,8 @@
 //! по одному merged mesh на каждый биом, который реально есть в чанке.
 
 use crate::terrain::chunk::Chunk;
-use crate::terrain::world_config::{CHUNK_SIZE, WorldConfig};
 use crate::terrain::terrain_enums::biome::Biome;
+use crate::terrain::world_config::{CHUNK_SIZE, WorldConfig};
 use bevy::mesh::Indices;
 use bevy::prelude::{
     Assets, Commands, Component, Entity, Handle, IVec2, Mesh, Mesh3d, MeshMaterial3d, Resource,

@@ -1,11 +1,9 @@
-//! Генерация карты высот для одного чанка.
-
 use bevy::prelude::{IVec2, Res, Resource};
 use noise::Perlin;
 use rayon::prelude::*;
 
 use super::noise::{fbm, normalise, sample};
-use crate::terrain::world_config::{IslandShape, WorldConfig, WorldShape, CHUNK_SIZE};
+use crate::terrain::world_config::{CHUNK_SIZE, IslandShape, WorldConfig, WorldShape};
 
 #[derive(Resource, Clone)]
 pub struct PerlinPlaceholder {
@@ -25,15 +23,15 @@ impl Default for PerlinPlaceholder {
 pub struct HeightMap {
     pub width: usize,
     pub height: usize,
-    /// Данные в row-major порядке: `data[row * width + col]`.
-    /// Значения в [0.0, 1.0].
     pub data: Vec<u8>,
 }
 
 impl HeightMap {
-    /// Сгенерировать карту высот для чанка. Семплирование идёт в глобальных
-    /// координатах тайлов, поэтому соседние чанки стыкуются без швов.
-    pub fn generate_chunk(chunk_coord: IVec2, config: &WorldConfig, perlin_placeholder: &Res<PerlinPlaceholder>) -> Self {
+    pub fn generate_chunk(
+        chunk_coord: IVec2,
+        config: &WorldConfig,
+        perlin_placeholder: &Res<PerlinPlaceholder>,
+    ) -> Self {
         let w = CHUNK_SIZE;
         let h = CHUNK_SIZE;
 
@@ -67,15 +65,13 @@ impl HeightMap {
                     ));
 
                     let combined =
-                        large * (1.0 - config.detail_weight)
-                            + detail * config.detail_weight;
+                        large * (1.0 - config.detail_weight) + detail * config.detail_weight;
 
                     let falloff = world_falloff(world_col, world_row, &config.world_shape);
 
                     row_data[col] = ((combined - falloff).clamp(0.0, 1.0) * 255.0) as u8;
                 }
-            }
-        );
+            });
 
         Self {
             width: w,
@@ -84,7 +80,6 @@ impl HeightMap {
         }
     }
 
-    /// Получить высоту в клетке (col, row).
     #[inline]
     pub fn get(&self, col: usize, row: usize) -> u8 {
         debug_assert!(col < self.width);
@@ -116,6 +111,6 @@ fn world_falloff(world_col: i32, world_row: i32, world_shape: &WorldShape) -> f6
     };
 
     // Внутри ~55% размера острова falloff почти не трогает шум, дальше плавно топит края.
-    let edge_t = ((d - 0.55) / 0.45).clamp(0.0, 1.0);
-    edge_t as f64 * (*falloff_strength as f64)
+    let edge_t: f32 = (1.0 - (d / 0.80)).clamp(0.0, 1.0);
+    edge_t as f64 * *falloff_strength
 }

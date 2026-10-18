@@ -1,7 +1,7 @@
-use crate::terrain::world_config::WorldConfig;
 use crate::terrain::terrain_enums::biome::Biome;
+use crate::terrain::world_config::WorldConfig;
 
-#[derive(Clone, Copy)]
+#[derive(Default, Clone, Copy)]
 pub struct Tile {
     pub height: u8,
     #[allow(dead_code)]
@@ -19,17 +19,6 @@ impl Tile {
             moisture: 0,
             temperature: 0,
             biome,
-        }
-    }
-}
-
-impl Default for Tile {
-    fn default() -> Self {
-        Tile {
-            height: 0,
-            moisture: 0,
-            temperature: 0,
-            biome: Biome::default(),
         }
     }
 }

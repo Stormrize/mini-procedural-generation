@@ -3,16 +3,14 @@
 pub mod camera_math;
 pub mod chunk_renderer;
 pub mod chunk_straming;
-mod details_renderer;
-use bevy::prelude::*;
-use std::collections::HashMap;
-use crate::input::events::{handle_input, RegenerateWorldEvent};
 use crate::terrain::generation::heightmap::PerlinPlaceholder;
 use crate::terrain::renderer::chunk_renderer::{
     SpawnedChunkMeshes, TileAssets, despawn_chunk_meshes,
 };
 use crate::terrain::renderer::chunk_straming::stream_chunks;
-use crate::terrain::renderer::details_renderer::{SpawnedModels, despawn_models};
+use crate::input::events::{RegenerateWorldEvent, handle_input};
+use bevy::prelude::*;
+use std::collections::HashMap;
 
 use crate::terrain::world::World;
 use crate::terrain::world_config::WorldConfig;
@@ -20,7 +18,6 @@ use crate::terrain::world_config::WorldConfig;
 #[derive(Resource, Default)]
 pub struct Rendered {
     chunks: HashMap<IVec2, SpawnedChunkMeshes>,
-    details: HashMap<IVec2, SpawnedModels>,
 }
 
 pub struct WorldPlugin;
@@ -59,9 +56,6 @@ fn apply_regenerate(
 
     for (_, chunk_meshes) in rendered.chunks.drain() {
         despawn_chunk_meshes(&mut commands, &mut meshes, chunk_meshes);
-    }
-    for (_, models) in rendered.details.drain() {
-        despawn_models(&mut commands, models);
     }
     world.clear();
 }

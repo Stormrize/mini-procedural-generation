@@ -1,8 +1,6 @@
-//! Ортографическая камера для чанкового мира.
-
 use bevy::{camera::ScalingMode, prelude::*};
 
-use crate::terrain::world_config::{WorldConfig, MAX_ORTHOGRAPHIC_SCALE, MIN_ORTHOGRAPHIC_SCALE};
+use crate::terrain::world_config::{MAX_ORTHOGRAPHIC_SCALE, MIN_ORTHOGRAPHIC_SCALE, WorldConfig};
 
 use bevy::input::mouse::{MouseScrollUnit, MouseWheel};
 use bevy::math::ops::sqrt;
@@ -24,7 +22,6 @@ impl Plugin for CameraPlugin {
     }
 }
 
-/// Маркер главной камеры — чтобы легко найти её в Query.
 #[derive(Component)]
 pub struct MainCamera;
 
@@ -73,7 +70,7 @@ fn camera_movement(
     mut mouse_wheel_reader: MessageReader<MouseWheel>,
     mut target_zoom: ResMut<CameraZoom>,
 ) {
-    let Ok((mut transform, mut projection)) = camera_q.single_mut() else {
+    let Ok((mut transform, projection)) = camera_q.single_mut() else {
         return;
     };
 
@@ -96,16 +93,15 @@ fn camera_movement(
     }
 
     let zoom_speed = 3.0;
-    if let Projection::Orthographic(ref mut ortho) = *projection {
-
+    if let Projection::Orthographic(_) = *projection {
         for mouse_wheel in mouse_wheel_reader.read() {
-
             let scroll = match mouse_wheel.unit {
                 MouseScrollUnit::Line => mouse_wheel.y * zoom_speed,
                 MouseScrollUnit::Pixel => mouse_wheel.y * zoom_speed * 0.05,
             };
 
-            target_zoom.zoom = (target_zoom.zoom - scroll).clamp(MIN_ORTHOGRAPHIC_SCALE, MAX_ORTHOGRAPHIC_SCALE);
+            target_zoom.zoom =
+                (target_zoom.zoom - scroll).clamp(MIN_ORTHOGRAPHIC_SCALE, MAX_ORTHOGRAPHIC_SCALE);
         }
     }
 }
@@ -126,5 +122,4 @@ fn apply_zoom_smoothing(
     let t = 1.0 - (-smoothness * time.delta_secs()).exp();
 
     ortho.scale = ortho.scale.lerp(target_zoom.zoom, t);
-    println!("{:?}", ortho.scale);
 }
